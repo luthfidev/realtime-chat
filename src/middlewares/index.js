@@ -1,0 +1,1 @@
+module.exports.middleware = require('./verifyToken.middleware')

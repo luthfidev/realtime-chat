@@ -6,7 +6,6 @@ const {authModel} = require('../models')
 const config = require('../config/global')
 const { res } = require('../helpers')
 
-
 module.exports = {
     register: async (request, response) => {
        try {
@@ -19,24 +18,24 @@ module.exports = {
                    password: passwordHash
                }
                if (isExistEmail) {
-                const results = await authModel.register(registerData)  
+                await authModel.register(registerData)  
                 response.status(201).send({
-                    'success': true,
-                    'message': 'Register success'})
+                    success: true,
+                    message: 'Register success'})
                } else {
                    response.status(400).send({
-                       'success': false,
-                       'message': 'Register failed'})
+                       success: false,
+                       message: 'Register failed'})
                }
            } else {
                response.status(400).send({
-                   'success': false,
-                   'message': 'Email is exist'})
+                   success: false,
+                   message: 'Email is exist'})
            }
        } catch (error) {
            response.status(400).send({
-               'success': false,
-               'message': 'Something wrong'})
+               success: false,
+               message: 'Something wrong'})
        }
     },
 
@@ -69,7 +68,8 @@ module.exports = {
                                 expiresIn: '1d',
                                 algorithm: config.app.algorithm
                             })
-                            response.status(200).header('Authorization', token).send({
+                        const refreshToken = Jwt.sign(payload, config.app.refresh_key,{expiresIn : '7d'})
+                            response.status(200).header({'Authorization': token, 'refreshtoken': refreshToken}).send({
                                 success: true,
                                 message: 'Password match',
                                 data: {
@@ -77,7 +77,8 @@ module.exports = {
                                     email: user[0].email,
                                     role: user[0].nameRole
                                 },
-                                token: token
+                                token: token,
+                                refreshToken: refreshToken
                             })
                     }
                 })
@@ -89,9 +90,50 @@ module.exports = {
             }
         } catch (error) {   
             response.status(400).send({
-                'success': false,
-                'message': 'Something wrong'
+                success: false,
+                message: 'Something wrong'
             })
         } 
+    },
+
+    refreshToken: async (request, response) => {
+        try {
+            if (request.headers.refreshtoken) {
+                const getUserToken = await Jwt.verify(request.headers.refreshtoken, config.app.refresh_key)
+                delete getUserToken.exp
+                delete getUserToken.iat
+
+                const token = await Jwt.sign(getUserToken, config.app.secret_key, {expiresIn: '1d'})
+                const refreshToken = await Jwt.sign(getUserToken, config.app.refresh_key, {expiresIn: '7d'})
+
+                response.status(201).send({
+                    success: true,
+                    message: 'Refresh token success',
+                    data: {
+                        token: token,
+                        refreshToken: refreshToken
+                    }
+                })
+
+            } else {
+                response.status(400).send({
+                    status: false,
+                    message: 'Failed refresh token'
+                })
+            }
+
+        } catch (error) {
+            if (error.name === 'TokenExpiredError') {
+                response.status(400).send({
+                    success: false,
+                    message: 'Token expired'
+                })
+            } else {
+                response.status(400).send({
+                    success: false,
+                    message: 'Token Invalid refresh'
+                })
+            }
+        }
     }
 }
