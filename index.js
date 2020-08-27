@@ -2,6 +2,9 @@ require('dotenv').config()
 const config = require('./src/config/global')
 
 const express = require('express')
+const app = express()
+const server = require('http').createServer(app)
+const io = require('socket.io')(server)
 const bodyparser = require('body-parser')
 const cors = require('cors')
 const PORT = config.app.app_port // set port
@@ -20,7 +23,6 @@ var corsOptionsDelegate = function (req, callback) {
   callback(null, corsOptions) // callback expects two parameters: error and options
 }
 
-const app = express()
 app.use(cors(corsOptionsDelegate))
 app.use(bodyparser.urlencoded({extended: true}))
 
@@ -31,14 +33,26 @@ app.get('/', (request, response) => {
     }
     response.status(200).send(data)
 })
- 
-app.get('*', (request, response) => {
-    response.status(404).send('Not Found')
+
+io.on('connection', (socket) => {
+    console.log('New user connect')
+    socket.on('disconnect', () => {
+      console.log('user disconnect')
+    })
 })
+
+app.use((request, response, next) => {
+  request.io = io
+  next()
+})
+
 
 // api routes
 app.use('/api/v1', routes)
 
+app.get('*', (request, response) => {
+    response.status(404).send('Not Found')
+})
 
 
 app.listen(PORT, () => {

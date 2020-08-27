@@ -4,16 +4,16 @@ const Bcrypt = require('bcrypt')
 const saltRounds = 10
 const {authModel} = require('../models')
 const config = require('../config/global')
-const { res } = require('../helpers')
 
 module.exports = {
     register: async (request, response) => {
        try {
-           const {email, password} = request.body
+           const {name, email, password} = request.body
            const passwordHash = await Bcrypt.hashSync(password, saltRounds)
            const isExistEmail = await authModel.login(email)
            if (isExistEmail.length < 1) {
                const registerData = {
+                   name,
                    email,
                    password: passwordHash
                }
@@ -60,8 +60,7 @@ module.exports = {
                         const payload = {
                             id: user[0].id,
                             email: user[0].email,
-                            role: user[0].nameRole,
-                            nameUser: user[0].nameUser
+                            name: user[0].name,
                         }
                         const token = Jwt.sign(payload, config.app.secret_key, 
                             {
@@ -75,7 +74,7 @@ module.exports = {
                                 data: {
                                     id: user[0].id,
                                     email: user[0].email,
-                                    role: user[0].nameRole
+                                    name: user[0].name
                                 },
                                 token: token,
                                 refreshToken: refreshToken
